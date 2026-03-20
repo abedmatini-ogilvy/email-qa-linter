@@ -1,0 +1,31 @@
+{
+  "name": "email-qa-linter",
+  "version": "1.0.0",
+  "description": "Automated QA for HTML Emails",
+  "main": "linter.js",
+  "scripts": {
+    "test": "jest",
+    "prepare": "husky"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github-ogilvy:abedmatini-ogilvy/email-qa-linter.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cheerio": "^1.2.0"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "jest": "^30.3.0",
+    "lint-staged": "^16.4.0"
+  },
+  "lint-staged": {
+    "*.html": [
+      "node cli.js"
+    ]
+  }
+}
