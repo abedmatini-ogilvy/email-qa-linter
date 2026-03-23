@@ -19,7 +19,7 @@ This phase addresses historical client feedback and edge cases that frequently c
 * **Structural Hierarchy:** Verifies specific header strings (e.g., "Everyday Value") are wrapped in `<h2>` tags, not `<p>` tags.
 * **Font-Size Mismatches:** Flags nested elements with conflicting inline font sizes.
 
-### Phase 2: Gloo Ogilvy Comprehensive Checklist (Upcoming)
+### Phase 2: Gloo Ogilvy Comprehensive Checklist (Completed)
 This phase implements the broader agency QA standards, including:
 * Checking for DOCTYPE declarations.
 * Ensuring all `<img>` tags have `alt` attributes.
@@ -27,7 +27,7 @@ This phase implements the broader agency QA standards, including:
 * Enforcing `HTTPS` on all links.
 * Flagging smart/curly quotes and em/en dashes.
 * Checking accessibility minimums (e.g., body font sizes >= 14px).
-* Ensuring maximum email width constraints (600-650px).
+* Ensuring maximum email width constraints (650px).
 
 ---
 
@@ -37,42 +37,55 @@ This phase implements the broader agency QA standards, including:
 
 1. Clone or download this repository.
 2. Open your terminal in the root folder and run:
-   \`\`\`bash
+   ```bash
    npm install
-   \`\`\`
-   *(This installs `cheerio` for DOM parsing, `jest` for testing, and `husky`/`lint-staged` for Git hooks).*
+   ```
+   *(This installs `cheerio` for DOM parsing, `express` for the interactive dashboard, `jest` for testing, and `husky`/`lint-staged` for Git hooks).*
 
 ---
 
 ## 💻 How to Use
 
-### 1. Manual Testing (CLI)
-You can manually run the linter on any HTML file without committing it.
-\`\`\`bash
-node cli.js ./path/to/your/email.html
-\`\`\`
-* **Pass:** `✅ ./email.html passed QA!`
-* **Fail:** `❌ QA Failed for: ./email.html` followed by a list of specific errors.
+### 1. Interactive DX Dashboard (Recommended)
+This spins up a local web server to visually display all errors with code snippets. It also includes an **Auto-Fix** button that can programmatically clean up Formatting, Encoding, and Typography issues!
+```bash
+npm run report path/to/email.html
+# OR
+node server.js path/to/email.html
+```
+* **View:** Open `http://localhost:3000` in your browser.
 
-### 2. Running the Automated Test Suite
-We use Jest to ensure our linter rules work correctly against mock HTML snippets. If you update the linter, always run the test suite to ensure you haven't broken existing rules.
-\`\`\`bash
-npm test
-\`\`\`
+### 2. Manual Testing (CLI)
+You can manually run the linter in your terminal. This is great for a quick, text-based check without firing up a browser.
+```bash
+npm run qa path/to/email.html
+# OR
+node cli.js path/to/email.html
+```
+* **Pass:** `✅ path/to/email.html passed QA!`
+* **Fail:** `❌ QA Failed for: path/to/email.html` followed by a list of specific errors and code snippets.
 
 ### 3. Automated Git Pre-Commit Hook
-This project uses **Husky** and **lint-staged**. When a developer runs `git commit`, the linter automatically runs on any staged `.html` files. 
+This project uses **Husky** and **lint-staged**. When a developer runs `git commit`, the linter automatically runs `node dashboard.js` on any staged `.html` files. 
 * If the code passes, the commit succeeds.
-* If the code fails, the commit is **blocked** and the developer must fix the errors in their code before trying again.
+* If the code fails, the commit is **blocked**, and the tool instantly generates a physical `qa-report.html` file in your directory. You can open this file in your browser to view a visual dashboard of exactly what needs fixing before you can commit.
+
+### 4. Running the Automated Test Suite
+We use Jest to ensure our linter rules work correctly against mock HTML snippets. If you update the linter, always run the test suite to ensure you haven't broken existing rules.
+```bash
+npm test
+```
 
 ---
 
 ## 📂 File Structure
 
 * `linter.js`: The core engine. Contains the `lintEmailHTML()` function, Cheerio DOM parsing, and Regex rules.
-* `cli.js`: The command-line wrapper that reads physical `.html` files and passes them into the linter.
-* `linter.test.js`: The Jest test suite containing mock HTML strings to verify each rule works.
-* `package.json`: Contains project dependencies and the `lint-staged` configuration.
+* `cli.js`: A command-line wrapper that prints errors directly to the terminal.
+* `server.js`: An Express server that hosts a highly visual, interactive QA dashboard with auto-fix capabilities.
+* `dashboard.js`: Generates a static offline HTML report (`qa-report.html`) and blocks bad code. Triggered automatically during git commits.
+* `linter.test.js`: Built-in Jest test suite to verify each linter rule works.
+* `package.json`: Contains project dependencies and npm scripts (`npm run qa`, `npm run report`).
 * `.husky/pre-commit`: The Git hook trigger.
 
 ---
@@ -83,27 +96,27 @@ This project was initially scaffolded using generative AI (GitHub Copilot / Curs
 
 **Phase 1 Prompt:**
 > **# Role and Context**
-> You are an expert Node.js developer specializing in HTML email development and Quality Assurance. We are building an automated QA script to parse HTML email files and identify formatting, structural, and semantic errors before they are sent to clients for review. We will use the \`cheerio\` library to traverse the DOM and regular expressions for strict string matching.
+> You are an expert Node.js developer specializing in HTML email development and Quality Assurance. We are building an automated QA script to parse HTML email files and identify formatting, structural, and semantic errors before they are sent to clients for review. We will use the `cheerio` library to traverse the DOM and regular expressions for strict string matching.
 >
 > **# Core Functionality**
-> Please write a JavaScript module with an exportable function \`lintEmailHTML(htmlString)\` that processes the code and returns an array of structured error objects. Include details like the issue type, a snippet of the context, and suggested fixes. 
+> Please write a JavaScript module with an exportable function `lintEmailHTML(htmlString)` that processes the code and returns an array of structured error objects. Include details like the issue type, a snippet of the context, and suggested fixes. 
 > 
 > **# Phase 1: Client-Specific Rules**
 > Implement strict checks for the following historical client feedback points:
 > 1. **Double Spaces:** Flag two or more consecutive spaces.
 > 2. **Spaces Before Punctuation:** Flag spaces before commas/periods.
 > 3. **Leading Spaces in URLs:** Flag spaces inside href attributes.
-> 4. **Tracking Pixels:** Find 1x1 imgs. Enforce \`alt=""\` and \`role="presentation"\`.
-> 5. **Structural Hierarchy:** Check specific text nodes (e.g., "Everyday Value") are in \`<h2>\`.
+> 4. **Tracking Pixels:** Find 1x1 imgs. Enforce `alt=""` and `role="presentation"`.
+> 5. **Structural Hierarchy:** Check specific text nodes (e.g., "Everyday Value") are in `<h2>`.
 > 6. **Font-Size Mismatches:** Identify parent/child inline style conflicts.
 
 **Phase 2 Prompt:**
 > **# Task: Phase 2 Implementation**
-> Update BOTH \`linter.js\` and \`linter.test.js\` to include new programmatic checks based on our agency's standard QA checklist.
+> Update BOTH `linter.js` and `linter.test.js` to include new programmatic checks based on our agency's standard QA checklist.
 > 
 > **# The New Rules to Implement:**
-> 1. **External Assets:** Flag \`<script>\` and \`<link rel="stylesheet">\`.
-> 2. **Link Security:** Flag \`http://\` (require \`https://\`, \`mailto:\`, \`tel:\`).
+> 1. **External Assets:** Flag `<script>` and `<link rel="stylesheet">`.
+> 2. **Link Security:** Flag `http://` (require `https://`, `mailto:`, `tel:`).
 > 3. **Typography:** Flag curly quotes and em/en dashes.
 > 4. **Accessibility:** Flag inline font-sizes < 14px on structural tags.
 > 5. **Email Width:** Flag explicit width > 650px on main tables.
