@@ -5,7 +5,9 @@
   "main": "linter.js",
   "scripts": {
     "test": "jest",
-    "prepare": "husky"
+    "prepare": "husky",
+    "qa": "node cli.js",
+    "report": "node server.js"
   },
   "repository": {
     "type": "git",
@@ -16,7 +18,8 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "cheerio": "^1.2.0"
+    "cheerio": "^1.2.0",
+    "express": "^5.2.1"
   },
   "devDependencies": {
     "husky": "^9.1.7",
@@ -25,7 +28,7 @@
   },
   "lint-staged": {
     "*.html": [
-      "node cli.js"
+      "node dashboard.js"
     ]
   }
 }

@@ -16,6 +16,10 @@ files.forEach(file => {
         console.error(`\n❌ QA Failed for: ${file}`);
         errors.forEach(err => {
             console.error(`   - [${err.type}] ${err.message}`);
+            // This new line will print the snippet so you can see the exact text!
+            if (err.snippet) {
+                console.error(`     Snippet: "${err.snippet.trim()}"\n`);
+            }
         });
         hasErrors = true;
     } else {

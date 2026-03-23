@@ -1,0 +1,36 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>QA Report: C:/Users/AbedMatini/Sites/email-qa-linter/qa-report.html</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f5; padding: 40px; color: #18181b; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        h1 { margin-top: 0; color: #e11d48; border-bottom: 2px solid #f4f4f5; padding-bottom: 15px; }
+        .error-card { background: #fff1f2; border-left: 4px solid #e11d48; padding: 15px 20px; margin-bottom: 15px; border-radius: 0 8px 8px 0; }
+        .type { display: inline-block; background: #ffe4e6; color: #be123c; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; }
+        .message { font-weight: bold; margin-bottom: 8px; font-size: 15px; }
+        .snippet { background: #18181b; color: #a1a1aa; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 13px; overflow-x: auto; margin: 0; white-space: pre-wrap; }
+        .highlight { color: #18181b; background-color: #fde047; font-weight: bold; padding: 2px 4px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>❌ QA Failed: C:/Users/AbedMatini/Sites/email-qa-linter/qa-report.html</h1>
+        <p>Found <strong>2</strong> issues that need to be fixed.</p>
+
+        <div class="error-card">
+            <div class="type">Accessibility</div>
+            <div class="message">Image is missing an alt attribute.</div>
+            <pre class="snippet"><img src="images/mc-logo.png" width="67" height="32" style="width: 67px; font-family: sans-serif; color: #141413; font-size: 14px; border: 0px; vertical-align:middle;" border="0"></pre>
+        </div>
+    
+        <div class="error-card">
+            <div class="type">Formatting</div>
+            <div class="message">Space before punctuation detected.</div>
+            <pre class="snippet">❌ QA Failed:<span class="highlight">[SPACE]</span>.\MC_CC_SC_EMAIL_CUSTOM 6\html\MC_CC_SC_EMAIL_C...</pre>
+        </div>
+    
+    </div>
+</body>
+</html>
