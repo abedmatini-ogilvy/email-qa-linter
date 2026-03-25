@@ -146,6 +146,44 @@ function lintEmailHTML(htmlString) {
         }
     });
 
+    // --- PHASE 3: The Missing Checklist Items ---
+
+    // 1. Check for UTF-8 Character Encoding
+    const hasCharset = $('meta[charset="UTF-8"], meta[charset="utf-8"]').length > 0;
+    const hasHttpEquiv = $('meta[http-equiv="Content-Type"]').attr('content')?.toLowerCase().includes('utf-8');
+    if (!hasCharset && !hasHttpEquiv) {
+        errors.push({ type: 'Structure', line: 1, message: 'Character encoding (UTF-8) meta tag is missing.' });
+    }
+
+    // 2. Check for Deprecated HTML Tags (which break in modern clients)
+    const deprecatedTags = ['font', 'center', 'marquee', 'blink', 'u'];
+    deprecatedTags.forEach(tag => {
+        $(tag).each((i, el) => {
+            errors.push({ type: 'Formatting', line: getLineNumber(htmlString, el), message: `Deprecated HTML tag <${tag}> detected. Use CSS instead.`, snippet: $.html(el).substring(0, 50) });
+        });
+    });
+
+    // 3. Check for non-descriptive link text (Accessibility)
+    const badLinkTexts = ['click here', 'read more', 'learn more', 'link'];
+    $('a').each((i, el) => {
+        const linkText = $(el).text().trim().toLowerCase();
+        if (badLinkTexts.includes(linkText)) {
+            errors.push({ type: 'Accessibility', line: getLineNumber(htmlString, el), message: `Link text "${linkText}" is not descriptive enough for screen readers.`, snippet: $.html(el) });
+        }
+    });
+
+    // 4. Scan for raw email addresses that aren't clickable links
+    $('*').contents().filter(function () { return this.type === 'text'; }).each(function () {
+        const text = $(this).text();
+        const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi;
+        const parentTag = $(this).parent()[0] ? $(this).parent()[0].name : '';
+        
+        // If it finds an email address, make sure it's inside an <a> tag!
+        if (parentTag !== 'a' && emailRegex.test(text)) {
+            errors.push({ type: 'Content', line: getLineNumber(htmlString, $(this).parent()[0]), message: 'Found an email address that is not a clickable mailto: link.', snippet: text.trim().substring(0, 50) });
+        }
+    });
+
     return errors;
 }
 

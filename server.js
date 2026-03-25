@@ -1,80 +1,73 @@
 const express = require('express');
-const fs = require('fs');
 const { lintEmailHTML } = require('./linter');
+const path = require('path');
 
 const app = express();
 const port = 3000;
-const file = process.argv[2];
 
-if (!file || !file.endsWith('.html')) {
-    console.error('❌ Please provide an HTML file. Example: node server.js email.html');
-    process.exit(1);
+app.use(express.json({ limit: '10mb' }));
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Helper to prevent HTML tags from rendering as actual elements on the screen
+function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
-function autoFixHTML(filePath) {
-    let htmlString = fs.readFileSync(filePath, 'utf8');
-    htmlString = htmlString.replace(/\s+([.,])/g, '$1');
-    htmlString = htmlString.replace(/href="\s+(http)/g, 'href="$1');
-    htmlString = htmlString.replace(/ & /g, ' &amp; ');
-    htmlString = htmlString.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
-    fs.writeFileSync(filePath, htmlString, 'utf8');
-}
-
-// Map our linter rules to the Agency Checklist
 const agencyChecklist = [
-    {
-        category: 'HTML Validation', checks: [
-            { label: 'DOCTYPE declaration is present and correct', errorMatches: ['DOCTYPE'] },
-            { label: 'Inline CSS only (no external stylesheets)', errorMatches: ['stylesheets'] },
-            { label: 'No JavaScript', errorMatches: ['JavaScript'] }
-        ]
-    },
-    {
-        category: 'Content & Security', checks: [
-            { label: 'All links use HTTPS (not HTTP)', errorMatches: ['HTTPS'] },
-            { label: 'Alt text and ARIA roles present on all images', errorMatches: ['alt attribute', 'Tracking pixel'] }
-        ]
-    },
-    {
-        category: 'Text & Formatting', checks: [
-            { label: 'No smart quotes or curly quotes', errorMatches: ['Smart/curly'] },
-            { label: 'No em dashes or en dashes', errorMatches: ['Em/En dash'] },
-            { label: 'No invisible characters or extra spaces', errorMatches: ['Double space', 'Space before', 'Leading space'] },
-            { label: 'Special characters are HTML encoded', errorMatches: ['Unencoded'] }
-        ]
-    },
-    {
-        category: 'Design & Accessibility', checks: [
-            { label: 'Email width is 600-650px maximum', errorMatches: ['width'] },
-            { label: 'Font sizes are appropriate (minimum 14px)', errorMatches: ['too small'] },
-            { label: 'Semantic HTML structure used (H2 vs P)', errorMatches: ['wrapped in an <h2>'] }
-        ]
-    }
+    { category: 'HTML Validation', checks: [
+        { label: 'DOCTYPE declaration is present and correct', errorMatches: ['DOCTYPE'] },
+        { label: 'Inline CSS only (no external stylesheets)', errorMatches: ['stylesheets'] },
+        { label: 'No JavaScript', errorMatches: ['JavaScript'] },
+        { label: 'Character encoding is set (UTF-8)', errorMatches: ['Character encoding'] }
+    ]},
+    { category: 'Content & Security', checks: [
+        { label: 'All links use HTTPS (not HTTP)', errorMatches: ['HTTPS'] },
+        { label: 'Alt text and ARIA roles present on images', errorMatches: ['alt attribute', 'Tracking pixel'] },
+        { label: 'Email addresses are clickable (mailto)', errorMatches: ['mailto'] }
+    ]},
+    { category: 'Text & Formatting', checks: [
+        { label: 'No smart quotes or curly quotes', errorMatches: ['Smart/curly'] },
+        { label: 'No em dashes or en dashes', errorMatches: ['Em/En dash'] },
+        { label: 'No invisible characters or extra spaces', errorMatches: ['Double space', 'Space before', 'Leading space'] },
+        { label: 'Special characters are HTML encoded', errorMatches: ['Unencoded'] },
+        { label: 'No deprecated HTML tags', errorMatches: ['Deprecated'] }
+    ]},
+    { category: 'Design & Accessibility', checks: [
+        { label: 'Email width is 600-650px maximum', errorMatches: ['width'] },
+        { label: 'Font sizes are appropriate (min 14px)', errorMatches: ['too small'] },
+        { label: 'Semantic HTML structure used (H2 vs P)', errorMatches: ['wrapped in an <h2>'] },
+        { label: 'Links have descriptive text', errorMatches: ['descriptive enough'] }
+    ]}
 ];
 
-app.get('/', (req, res) => {
-    const htmlString = fs.readFileSync(file, 'utf8');
+app.post('/api/lint', (req, res) => {
+    const htmlString = req.body.html;
     const errors = lintEmailHTML(htmlString);
-
     const fixableTypes = ['Formatting', 'Encoding', 'Typography'];
-    const fixableCount = errors.filter(e => fixableTypes.includes(e.type)).length;
 
-    // Generate Checklist HTML
-    let checklistHtml = '';
+    // 1. Generate Checklist Progress
     let passedCount = 0;
     let totalChecks = 0;
+    let checklistHtml = '';
 
     agencyChecklist.forEach(section => {
-        checklistHtml += `<div class="checklist-section"><h4>${section.category}</h4><ul class="checklist">`;
+        checklistHtml += `
+            <div style="margin-bottom: 20px;">
+                <h4 style="margin: 0 0 10px 0; color: #3f3f46; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px;">${section.category}</h4>
+                <ul style="list-style: none; padding: 0; margin: 0; font-size: 13px;">
+        `;
         section.checks.forEach(check => {
             totalChecks++;
-            // Check if any error messages match this checklist item
             const hasFailed = errors.some(err => check.errorMatches.some(match => err.message.includes(match)));
             if (!hasFailed) passedCount++;
-
+            
+            const color = hasFailed ? '#be123c' : '#166534';
+            const icon = hasFailed ? '❌' : '✅';
+            
             checklistHtml += `
-                <li class="${hasFailed ? 'fail' : 'pass'}">
-                    <span class="icon">${hasFailed ? '❌' : '✅'}</span>
+                <li style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; line-height: 1.4; color: ${color}; font-weight: 500;">
+                    <span>${icon}</span>
                     <span>${check.label}</span>
                 </li>
             `;
@@ -82,133 +75,110 @@ app.get('/', (req, res) => {
         checklistHtml += `</ul></div>`;
     });
 
-    let reportHtml = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>QA Dashboard: ${file}</title>
-        <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f5; color: #18181b; margin: 0; }
-            .header { background: white; padding: 20px 40px; border-bottom: 1px solid #e4e4e7; position: sticky; top: 0; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05); z-index: 10; }
-            .layout { display: grid; grid-template-columns: 350px 1fr; gap: 30px; max-width: 1400px; margin: 40px auto; padding: 0 40px; align-items: start; }
-            
-            /* Checklist Panel */
-            .panel { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 1px 3px rgb(0 0 0 / 0.1); }
-            .checklist-section h4 { margin: 0 0 10px 0; color: #3f3f46; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; }
-            .checklist { list-style: none; padding: 0; margin: 0 0 20px 0; font-size: 14px; }
-            .checklist li { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; color: #52525b; line-height: 1.4; }
-            .checklist li.pass { color: #166534; font-weight: 500; }
-            .checklist li.fail { color: #be123c; font-weight: 500; }
-            .progress-bar { background: #e4e4e7; height: 8px; border-radius: 4px; margin: 15px 0; overflow: hidden; }
-            .progress-fill { background: #10b981; height: 100%; width: ${(passedCount / totalChecks) * 100}%; transition: width 0.5s; }
+    const progressPercentage = (passedCount / totalChecks) * 100;
 
-            /* Errors Panel */
-            .error-card { background: white; border-left: 4px solid #e11d48; padding: 20px; margin-bottom: 15px; border-radius: 4px; box-shadow: 0 1px 3px rgb(0 0 0 / 0.1); }
-            .badge-container { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-            .type { background: #ffe4e6; color: #be123c; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; text-transform: uppercase; }
-            .line-number { background: #3f3f46; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; font-family: monospace; }
-            .type.fixable { background: #fef08a; color: #854d0e; border-left-color: #eab308; }
-            .error-card.fixable { border-left-color: #eab308; }
-            .message { font-weight: bold; margin-bottom: 10px; font-size: 15px; }
-            .snippet { background: #18181b; color: #a1a1aa; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 13px; overflow-x: auto; margin: 0; white-space: pre-wrap; line-height: 1.5; }
-            .highlight { color: #18181b; background-color: #fde047; font-weight: bold; padding: 2px 4px; border-radius: 3px; }
-            
-            .btn { background: #10b981; color: white; border: none; padding: 10px 20px; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 14px; transition: 0.2s; }
-            .btn:hover { background: #059669; }
-            .btn:disabled { background: #a1a1aa; cursor: not-allowed; }
-            .success-msg { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 40px; border-radius: 8px; text-align: center; }
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <div>
-                <h2 style="margin:0; color: #18181b;">Agency QA Dashboard</h2>
-                <p style="margin: 5px 0 0 0; color: #71717a; font-size: 14px;">Analyzing: <strong>${file}</strong></p>
-            </div>
-            <div>
-                ${fixableCount > 0
-            ? `<button class="btn" onclick="fixErrors()">✨ Auto-Fix ${fixableCount} Issues</button>`
-            : `<button class="btn" disabled>No Auto-Fixable Issues</button>`
-        }
-            </div>
-        </div>
-
-        <div class="layout">
-            <div class="panel">
-                <h3 style="margin-top: 0;">Automated Checks</h3>
-                <div style="font-size: 24px; font-weight: bold; color: #18181b;">
-                    ${passedCount} / ${totalChecks} Passed
-                </div>
-                <div class="progress-bar"><div class="progress-fill"></div></div>
-                <p style="font-size: 12px; color: #71717a; margin-bottom: 20px;">
-                    *Note: Litmus, proofreading, and image optimizations must still be checked manually.
-                </p>
-                ${checklistHtml}
-            </div>
-
-            <div>
-    `;
-
+    // 2. Generate Error Cards
+    let errorsHtml = '';
     if (errors.length === 0) {
-        reportHtml += `
-            <div class="success-msg">
+        errorsHtml = `
+            <div style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 30px; border-radius: 8px; text-align: center;">
                 <h1 style="font-size: 40px; margin: 0 0 10px 0;">🎉</h1>
-                <h2 style="margin: 0 0 10px 0;">All automated QA checks passed!</h2>
-                <p style="margin: 0;">This file is clean and ready for manual Litmus testing.</p>
+                <h2 style="margin: 0 0 10px 0;">All automated checks passed!</h2>
+                <p style="margin: 0;">This code is clean and ready for Litmus testing.</p>
             </div>
         `;
     } else {
-        reportHtml += `<h3 style="color: #e11d48; margin-top: 0;">Found ${errors.length} issues requiring attention:</h3>`;
+        errorsHtml = `<h3 style="color: #e11d48; margin-top: 0;">Found ${errors.length} issues requiring attention:</h3>`;
         errors.forEach(err => {
-            let visualSnippet = err.snippet || '';
-            const isFixable = fixableTypes.includes(err.type);
+            let snippetHtml = '';
+            
+            if (err.snippet) {
+                // If it's something we can auto-fix, build the Side-By-Side diff!
+                if (fixableTypes.includes(err.type)) {
+                    let orig = escapeHtml(err.snippet);
+                    let fixed = escapeHtml(err.snippet);
 
-            if (err.type === 'Formatting') {
-                visualSnippet = visualSnippet.replace(/ {2,}/g, '<span class="highlight">[DOUBLE SPACE]</span>');
-                visualSnippet = visualSnippet.replace(/ ([,.])/g, '<span class="highlight">[SPACE]</span>$1');
+                    // Add Red/Green visual highlights based on the specific error
+                    if (err.message.includes('Double space')) {
+                        orig = orig.replace(/ {2,}/g, '<span class="diff-removed" title="Double Space">  </span>');
+                        fixed = fixed.replace(/ {2,}/g, '<span class="diff-added" title="Single Space"> </span>');
+                    } else if (err.message.includes('Space before punctuation')) {
+                        orig = orig.replace(/ ([,.])/g, '<span class="diff-removed" title="Extra Space"> </span>$1');
+                        fixed = fixed.replace(/ ([,.])/g, '<span class="diff-added"></span>$1');
+                    } else if (err.message.includes('Smart/curly quotes')) {
+                        orig = orig.replace(/([“”‘’])/g, '<span class="diff-removed">$1</span>');
+                        fixed = fixed.replace(/[“”]/g, '<span class="diff-added">"</span>').replace(/[‘’]/g, '<span class="diff-added">\'</span>');
+                    } else if (err.message.includes('Unencoded ampersand')) {
+                        orig = orig.replace(/&(?![a-zA-Z0-9#]+;)/g, '<span class="diff-removed">&amp;</span>');
+                        fixed = fixed.replace(/&(?![a-zA-Z0-9#]+;)/g, '<span class="diff-added">&amp;amp;</span>');
+                    } else if (err.message.includes('Leading space found in href')) {
+                        orig = orig.replace(/href=&quot;\s+/g, 'href=&quot;<span class="diff-removed" title="Extra Space"> </span>');
+                        fixed = fixed.replace(/href=&quot;\s+/g, 'href=&quot;<span class="diff-added"></span>');
+                    }
+
+                    snippetHtml = `
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                            <div>
+                                <div style="font-size: 11px; font-weight: bold; color: #9f1239; margin-bottom: 5px; text-transform: uppercase;">🔴 Original Code</div>
+                                <pre class="snippet">${orig}</pre>
+                            </div>
+                            <div>
+                                <div style="font-size: 11px; font-weight: bold; color: #166534; margin-bottom: 5px; text-transform: uppercase;">🟢 Fixed Code</div>
+                                <pre class="snippet">${fixed}</pre>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // For structural errors (like missing Alt tags), just show one normal box
+                    snippetHtml = `<pre class="snippet">${escapeHtml(err.snippet)}</pre>`;
+                }
             }
 
-            reportHtml += `
-                <div class="error-card ${isFixable ? 'fixable' : ''}">
-                    <div class="badge-container">
-                        <div class="type ${isFixable ? 'fixable' : ''}">${err.type}</div>
-                        <div class="line-number">Line ${err.line}</div>
+            errorsHtml += `
+                <div style="background: white; border: 1px solid #e4e4e7; border-left: 4px solid #e11d48; padding: 20px; margin-bottom: 15px; border-radius: 4px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <span style="background: #ffe4e6; color: #be123c; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; text-transform: uppercase;">${err.type}</span>
+                        <span style="background: #3f3f46; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; font-family: monospace;">Line ${err.line}</span>
                     </div>
-                    <div class="message">${err.message}</div>
-                    ${visualSnippet ? `<pre class="snippet">${visualSnippet}</pre>` : ''}
+                    <div style="font-weight: bold; margin-bottom: 10px; font-size: 15px;">${err.message}</div>
+                    ${snippetHtml}
                 </div>
             `;
         });
     }
 
-    reportHtml += `
+    // 3. Combine into the Grid Layout
+    const finalHtml = `
+        <style>
+            .snippet { background: #18181b; color: #a1a1aa; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 13px; overflow-x: auto; margin: 0; white-space: pre-wrap; line-height: 1.5; }
+            .diff-removed { background-color: #fecdd3; color: #9f1239; padding: 1px 4px; border-radius: 3px; font-weight: bold; text-decoration: underline; text-decoration-style: wavy; }
+            .diff-added { background-color: #bbf7d0; color: #166534; padding: 1px 4px; border-radius: 3px; font-weight: bold; }
+        </style>
+        <div style="display: grid; grid-template-columns: 320px 1fr; gap: 30px; align-items: start; margin-top: 30px; border-top: 2px solid #f4f4f5; padding-top: 30px;">
+            <div style="background: #fafafa; border: 1px solid #e4e4e7; padding: 20px; border-radius: 8px; position: sticky; top: 20px;">
+                <h3 style="margin-top: 0; margin-bottom: 5px;">Automated Checks</h3>
+                <div style="font-size: 20px; font-weight: bold; color: #18181b;">
+                    ${passedCount} / ${totalChecks} Passed
+                </div>
+                <div style="background: #e4e4e7; height: 8px; border-radius: 4px; margin: 15px 0; overflow: hidden;">
+                    <div style="background: #10b981; height: 100%; width: ${progressPercentage}%; transition: width 0.5s;"></div>
+                </div>
+                <p style="font-size: 11px; color: #71717a; margin-bottom: 20px; line-height: 1.4;">
+                    *Litmus, proofreading, and image optimizations must still be checked manually.
+                </p>
+                ${checklistHtml}
+            </div>
+
+            <div>
+                ${errorsHtml}
             </div>
         </div>
-        <script>
-            function fixErrors() {
-                const btn = document.querySelector('.btn');
-                btn.innerText = 'Fixing...';
-                btn.disabled = true;
-                
-                fetch('/fix', { method: 'POST' })
-                    .then(() => {
-                        window.location.reload();
-                    });
-            }
-        </script>
-    </body>
-    </html>
     `;
 
-    res.send(reportHtml);
-});
-
-app.post('/fix', (req, res) => {
-    autoFixHTML(file);
-    res.sendStatus(200);
+    res.send(finalHtml);
 });
 
 app.listen(port, () => {
-    console.log(`\n🚀 Interactive DX Dashboard running!`);
+    console.log(`\n🚀 Web App is running!`);
     console.log(`👉 Open your browser to: http://localhost:${port}\n`);
 });
