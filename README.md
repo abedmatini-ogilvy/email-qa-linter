@@ -76,6 +76,30 @@ We use Jest to ensure our linter rules work correctly against mock HTML snippets
 npm test
 ```
 
+### 5. Using Copilot Instructions in This Repo
+This repository includes workspace-level guidance for GitHub Copilot Chat in [.github/copilot-instructions.md](.github/copilot-instructions.md).
+
+How it works:
+1. When you ask Copilot Chat to review or fix an email, it uses the rules in that file as behavioral instructions.
+2. Those instructions are not a command-line script; they are prompt context for Copilot in this workspace.
+3. The instructions cover the same QA areas enforced by this project (formatting, typography, accessibility, structure, HTTPS, and width).
+
+How to run it in practice:
+1. Open an HTML email file in VS Code.
+2. In Copilot Chat, ask for a targeted action, for example:
+   - "Fix QA for this file based on our Copilot instructions"
+   - "Review this email for spacing, ampersands, tracking pixels, and font-size issues"
+3. Apply the generated edits, then validate with the CLI:
+
+```bash
+npm run qa path/to/email.html
+```
+
+When to use each workflow:
+1. Use Copilot Chat for guided edits and fast remediation.
+2. Use `npm run qa` as the deterministic pass/fail check.
+3. Use `npm run report` to inspect issues in the browser dashboard.
+
 ---
 
 ## 📂 File Structure
